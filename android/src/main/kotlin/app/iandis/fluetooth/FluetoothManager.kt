@@ -115,8 +115,9 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
 
         _executor.execute {
             try {
-                connect(currentDevice)
+                val mSocket = connect(currentDevice)
                 _connectedDevice.add(currentDevice)
+                _socket.add(mSocket)
                 onResult(currentDevice)
             } catch (t: Throwable) {
                 _connectedDevice.remove(currentDevice)
@@ -133,11 +134,11 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
         }
     }
 
-    private fun connect(device: BluetoothDevice) {
+    private fun connect(device: BluetoothDevice): BluetoothSocket {
         val mSocket = device.createRfcommSocketToServiceRecord(_uuid)
         mSocket.connect()
-        _socket.add(mSocket)
-        }
+        return mSocket
+    }
 
     fun disconnect() {
         closeSocket()

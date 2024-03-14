@@ -178,12 +178,20 @@ class _MyAppState extends State<MyApp> {
 
     if (deviceId == null) {
       for (var device in _connectedDevice) {
-        await Fluetooth().sendBytes(paper.bytes, device.id);
+        try {
+          await Fluetooth().sendBytes(paper.bytes, device.id);
+        } catch (_) {
+          await _disconnect(device);
+        }
       }
     } else {
       for (var device in _connectedDevice) {
         if (device.id == deviceId) {
-          await Fluetooth().sendBytes(paper.bytes, device.id);
+          try {
+            await Fluetooth().sendBytes(paper.bytes, device.id);
+          } catch (_) {
+            await _disconnect(device);
+          }
           break;
         }
       }
