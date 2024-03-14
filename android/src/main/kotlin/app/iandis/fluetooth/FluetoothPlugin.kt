@@ -3,7 +3,6 @@ package app.iandis.fluetooth
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
-import androidx.annotation.NonNull
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.FlutterPlugin.FlutterPluginBinding
@@ -14,11 +13,10 @@ import io.flutter.plugin.common.MethodChannel.Result
 
 class FluetoothPlugin : FlutterPlugin, MethodCallHandler {
     private val _channelName: String = "fluetooth/main"
-
     private lateinit var _channel: MethodChannel
     private var _fluetoothManager: FluetoothManager? = null
 
-    override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPluginBinding) {
+    override fun onAttachedToEngine(flutterPluginBinding: FlutterPluginBinding) {
         _channel = MethodChannel(flutterPluginBinding.binaryMessenger, _channelName)
         _channel.setMethodCallHandler(this)
         val context: Context = flutterPluginBinding.applicationContext
@@ -28,19 +26,23 @@ class FluetoothPlugin : FlutterPlugin, MethodCallHandler {
         _fluetoothManager = FluetoothManager(adapter)
     }
 
-    override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
+    override fun onMethodCall(call: MethodCall, result: Result) {
         try {
             when (call.method) {
                 "isAvailable" -> {
-                    val isAvailable: Boolean? = _fluetoothManager!!.isAvailable
+                    val isAvailable: Boolean = _fluetoothManager!!.isAvailable
                     result.success(isAvailable)
                 }
                 "isConnected" -> {
-                    val isConnected: Boolean = _fluetoothManager!!.isConnected
-                    result.success(isConnected)
+                    val targetDevice: Any = call.arguments
+                    if (targetDevice is String) {
+                        val isConnected: Boolean = _fluetoothManager!!.isConnected(targetDevice)
+                        result.success(isConnected)
+                    }
+
                 }
                 "connectedDevice" -> {
-                    val connectedDevice: Map<String, String>? = _fluetoothManager!!.connectedDevice
+                    val connectedDevice: MutableList<Map<String, String>> = _fluetoothManager!!.connectedDevice
                     result.success(connectedDevice)
                 }
                 "getAvailableDevices" -> {
@@ -49,7 +51,7 @@ class FluetoothPlugin : FlutterPlugin, MethodCallHandler {
                     result.success(availableDevices)
                 }
                 "connect" -> {
-                    if (_fluetoothManager!!.isAvailable != true) {
+                    if (!_fluetoothManager!!.isAvailable) {
                         throw Exception("Bluetooth is not available.")
                     }
                     val targetDevice: Any = call.arguments
@@ -73,22 +75,33 @@ class FluetoothPlugin : FlutterPlugin, MethodCallHandler {
                     result.success(true)
                 }
                 "sendBytes" -> {
-                    if (_fluetoothManager!!.isAvailable != true) {
+                    if (!_fluetoothManager!!.isAvailable) {
                         throw Exception("Bluetooth is not available.")
                     }
-                    if (!_fluetoothManager!!.isConnected) {
-                        throw Exception("Not connected!")
-                    }
+
                     val arguments: Any = call.arguments
                     if (arguments is Map<*, *>) {
                         val bytes: ByteArray = arguments["bytes"] as ByteArray
-                        _fluetoothManager!!.send(bytes, {
+                        val deviceAddress: String = arguments["device"] as String
+
+                        if (!_fluetoothManager!!.isConnected(deviceAddress)) {
+                            throw Exception("Not connected!")
+                        }
+
+                        _fluetoothManager!!.send(bytes,deviceAddress, {
                             result.success(true)
                         }, {
                             result.error("FLUETOOTH_ERROR", it.message, it.cause)
                         })
                     } else {
                         throw IllegalArgumentException("arguments should be a Map")
+                    }
+                }
+                "disconnectDevice" -> {
+                    val targetDevice: Any = call.arguments
+                    if (targetDevice is String) {
+                        _fluetoothManager!!.disconnectDevice(targetDevice)
+                        result.success(true)
                     }
                 }
                 else -> result.notImplemented()
@@ -102,7 +115,7 @@ class FluetoothPlugin : FlutterPlugin, MethodCallHandler {
         }
     }
 
-    override fun onDetachedFromEngine(@NonNull binding: FlutterPluginBinding) {
+    override fun onDetachedFromEngine(binding: FlutterPluginBinding) {
         _channel.setMethodCallHandler(null)
         _fluetoothManager!!.dispose()
         _fluetoothManager = null

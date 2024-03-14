@@ -10,10 +10,9 @@ import java.util.UUID
 class FluetoothManager(private val _adapter: BluetoothAdapter?) {
 
     // Standard SerialPortService ID
-    private val _uuid: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-    private var _connectedDevice: BluetoothDevice? = null
-    private var _socket: BluetoothSocket? = null
-    private var _outputStream: OutputStream? = null
+    private var _uuid: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+    private var _connectedDevice: MutableList<BluetoothDevice> = mutableListOf()
+    private var _socket: MutableList<BluetoothSocket> = mutableListOf()
     private val _executor: SerialExecutor = SerialExecutor()
 
     /**
@@ -21,11 +20,27 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
      * */
     val isAvailable: Boolean get() = _adapter?.isEnabled ?: false
 
-    val isConnected: Boolean
-        get() = _socket?.isConnected == true
+    /**
+     * @return **true** when device connected, **false** when not connected
+     * */
 
-    val connectedDevice: Map<String, String>?
-        get() = _connectedDevice?.toMap()
+    fun isConnected(deviceAddress: String): Boolean {
+        for (socket: BluetoothSocket in _socket) {
+            if (socket.remoteDevice.address.equals(deviceAddress)) {
+                return socket.isConnected
+            }
+        }
+        return false
+    }
+
+    /**
+     * @return **MutableList<Map<String, String>>** of connected device
+     * */
+
+    val connectedDevice: MutableList<Map<String, String>>
+        get() = _connectedDevice.map {
+            it.toMap()
+        }.toMutableList()
 
     fun getAvailableDevices(): List<Map<String, String>> {
         val devicesMap: MutableList<Map<String, String>> = mutableListOf()
@@ -38,20 +53,33 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
         return devicesMap
     }
 
-    fun send(bytes: ByteArray, onComplete: () -> Unit, onError: (Throwable) -> Unit) {
-        _executor.execute {
-            try {
-                if (!isConnected || _outputStream == null) {
-                    onError(Exception("No device connected!"))
-                    return@execute
+    fun send(bytes: ByteArray, deviceAddress: String, onComplete: () -> Unit, onError: (Throwable) -> Unit) {
+        for (device: BluetoothDevice in _connectedDevice) {
+            if (device.address.equals(deviceAddress)) {
+                _executor.execute {
+                    try {
+                        if (!isConnected(deviceAddress)) {
+                            onError(Exception("No device connected!"))
+                            return@execute
+                        }
+
+                        for (socket: BluetoothSocket in _socket) {
+                            if (socket.remoteDevice.address.equals(deviceAddress)) {
+                                val os: OutputStream = socket.outputStream
+                                os.write(bytes)
+                                os.flush()
+                                onComplete()
+                            }
+                        }
+
+
+                    } catch (t: Throwable) {
+                        onError(t)
+                    }
                 }
-                _outputStream?.write(bytes)
-                _outputStream?.flush()
-                onComplete()
-            } catch (t: Throwable) {
-                onError(t)
             }
         }
+
     }
 
     @Synchronized
@@ -60,64 +88,74 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
         onResult: (BluetoothDevice) -> Unit,
         onError: (Throwable) -> Unit
     ) {
-        if (!_disconnectIfNewAddress(deviceAddress)) {
-            onResult(_connectedDevice!!)
-            return
+
+        var currentDevice: BluetoothDevice? = null
+
+        for (device: BluetoothDevice in _connectedDevice) {
+            if (device.address.equals(deviceAddress)) {
+                onResult(device)
+                return
+            }
         }
 
         val bondedDevices: Set<BluetoothDevice> = _adapter!!.bondedDevices
         if (bondedDevices.isNotEmpty()) {
             for (device: BluetoothDevice in bondedDevices) {
                 if (device.address.equals(deviceAddress)) {
-                    _connectedDevice = device
+                    currentDevice = device
                     break
                 }
             }
         }
 
-        if (_connectedDevice == null) {
+        if (currentDevice == null) {
             onError(Exception("Device not found"))
             return
         }
 
         _executor.execute {
             try {
-                _connect()
-                onResult(_connectedDevice!!)
+                connect(currentDevice)
+                _connectedDevice.add(currentDevice)
+                onResult(currentDevice)
             } catch (t: Throwable) {
-                disconnect()
+                _connectedDevice.remove(currentDevice)
                 onError(t)
             }
         }
     }
 
-    fun _closeSocket() {
-        _outputStream?.close()
-        _outputStream = null
-        _socket?.close()
-        _socket = null
+    private fun closeSocket() {
+        for (socket: BluetoothSocket in _socket) {
+            val os: OutputStream = socket.outputStream
+            os.close()
+            socket.close()
+        }
     }
 
-    fun _connect() {
-        _socket = _connectedDevice?.createRfcommSocketToServiceRecord(_uuid)
-        _socket?.connect()
-        _outputStream = _socket?.outputStream
-    }
-
-    /**
-     *
-     * @return **true** when disconnects, **false** when already connected to device with
-     * the same address
-     */
-    private fun _disconnectIfNewAddress(deviceAddress: String): Boolean {
-        if (_connectedDevice?.address == deviceAddress && isConnected) return false
-        disconnect()
-        return true
-    }
+    private fun connect(device: BluetoothDevice) {
+        val mSocket = device.createRfcommSocketToServiceRecord(_uuid)
+        mSocket.connect()
+        _socket.add(mSocket)
+        }
 
     fun disconnect() {
-        _closeSocket()
-        _connectedDevice = null
+        closeSocket()
+        _socket.clear()
+        _connectedDevice.clear()
+    }
+
+    fun disconnectDevice(deviceAddress: String) {
+        for (socket: BluetoothSocket in _socket) {
+            if (socket.remoteDevice.address.equals(deviceAddress)) {
+                val os: OutputStream = socket.outputStream
+                os.close()
+                socket.close()
+                _socket.remove(socket)
+                _connectedDevice.remove(socket.remoteDevice)
+                break
+            }
+        }
     }
 
     fun dispose() {

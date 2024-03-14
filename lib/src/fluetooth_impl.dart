@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -34,13 +33,16 @@ class FluetoothImpl implements Fluetooth {
   }
 
   @override
-  Future<FluetoothDevice?> get connectedDevice async {
-    final Map<Object?, Object?>? responseMap =
-        await _channel.invokeMapMethod<Object?, Object?>('connectedDevice');
+  Future<List<FluetoothDevice>> get connectedDevice async {
+    final List<Map<Object?, Object?>>? responseMap = await _channel
+        .invokeListMethod<Map<Object?, Object?>>('connectedDevice');
 
     if (responseMap != null) {
-      return FluetoothDevice.fromMap(Map<String, String>.from(responseMap));
+      return responseMap.map<FluetoothDevice>((map) {
+        return FluetoothDevice.fromMap(Map<String, String>.from(map));
+      }).toList();
     }
+    return const <FluetoothDevice>[];
   }
 
   @override
@@ -70,15 +72,21 @@ class FluetoothImpl implements Fluetooth {
   }
 
   @override
-  Future<bool> get isConnected async {
-    return await _channel.invokeMethod<bool>('isConnected') ?? false;
+  Future<bool> isConnected(String deviceId) async {
+    return await _channel.invokeMethod<bool>('isConnected', deviceId) ?? false;
   }
 
   @override
-  Future<void> sendBytes(List<int> bytes) {
+  Future<void> sendBytes(List<int> bytes, String deviceId) {
     final Map<String, dynamic> arguments = <String, dynamic>{
       'bytes': bytes is Uint8List ? bytes : Uint8List.fromList(bytes),
+      'device': deviceId,
     };
     return _channel.invokeMethod<bool>('sendBytes', arguments);
+  }
+
+  @override
+  Future<void> disconnectDevice(String deviceId) {
+    return _channel.invokeMethod<bool>('disconnectDevice', deviceId);
   }
 }
