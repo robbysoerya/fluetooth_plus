@@ -44,6 +44,12 @@ public class SwiftFluetoothPlugin: NSObject, FlutterPlugin {
                 uuidString: uuidString,
                 resultCallback: result
             )
+        case "disconnectDevice":
+            guard let uuidString: String = call.arguments as? String else {
+                result(FluetoothError(message: "Invalid argument for method [disconnectDevice]").toFlutterError())
+                return
+            }
+            _fluetoothManager!.disconnectDevice(uuidString,resultCallback: result)
         case "disconnect":
             _fluetoothManager!.disconnect(result)
         case "sendBytes":

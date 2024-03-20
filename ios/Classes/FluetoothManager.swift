@@ -47,7 +47,7 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         }
     }
     
-    private var _connectedDeviceService: CBService?
+    private var _connectedDeviceService: [CBService] = []
     private var _connectedDeviceCharacteristic: [CBCharacteristic] = []
     private var _dataQueue: DataQueue?
 
@@ -104,7 +104,6 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
                 return
             }
 
-            
             self._resultCallback = resultCallback
             self._centralManager?.connect(peripheral)
         }
@@ -119,15 +118,11 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
             guard let connectedDevice: CBPeripheral = self._connectedDevice.first(where: {$0.identifier.uuidString == uuidString}) else {
                 resultCallback(FluetoothError(message: "No device connected").toFlutterError())
                 self._executor.next()
-                print("Masuk else connectedDevice")
                 return
             }
-            guard let characteristic: CBCharacteristic = self._connectedDeviceCharacteristic.first(where: {$0.service!.peripheral!.identifier.uuidString == uuidString}) else {
+            guard let characteristic: CBCharacteristic = self._connectedDeviceCharacteristic.first(where: {$0.service?.peripheral?.identifier.uuidString == uuidString}) else {
                 resultCallback(FluetoothError(message: "Failed to discover device characteristics").toFlutterError())
                 self._executor.next()
-                
-                print(uuidString)
-                print(self._connectedDeviceCharacteristic)
                 return
             }
             
@@ -210,7 +205,7 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         switch central.state {
         case .resetting, .poweredOff:
             _connectedDevice = []
-            _connectedDeviceService = nil
+            _connectedDeviceService = []
             _connectedDeviceCharacteristic = []
             _availableDevices = []
             _availableDeviceUUIDStrings = []
@@ -231,8 +226,6 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         peripheral.delegate = self
         peripheral.discoverServices(nil)
         _connectedDevice.append(peripheral)
-      
-        _connectedDeviceService = nil
         _resultCallback?(connectedDevice!)
         _resultCallback = nil
         _executor.next()
@@ -243,9 +236,10 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         didDisconnectPeripheral peripheral: CBPeripheral,
         error: Error?
     ) {
-        _connectedDevice = []
-        _connectedDeviceService = nil
-        _connectedDeviceCharacteristic = []
+        _connectedDevice.removeAll(where: {$0.identifier.uuidString == peripheral.identifier.uuidString})
+        _connectedDeviceService.removeAll(where: {$0.peripheral?.identifier.uuidString == peripheral.identifier.uuidString})
+        _connectedDeviceCharacteristic.removeAll(where: {$0.service?.peripheral?.identifier.uuidString == peripheral.identifier.uuidString})
+        
         _dataQueue = nil
         _resultCallback?(error?.toFlutterError() ?? true)
         _resultCallback = nil
@@ -257,9 +251,12 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         didFailToConnect peripheral: CBPeripheral,
         error: Error?
     ) {
-        _connectedDevice = []
-        _connectedDeviceService = nil
-        _connectedDeviceCharacteristic = []
+       
+        _connectedDevice.removeAll(where: {$0.identifier.uuidString == peripheral.identifier.uuidString})
+        _connectedDeviceService.removeAll(where: {$0.peripheral?.identifier.uuidString == peripheral.identifier.uuidString})
+        _connectedDeviceCharacteristic.removeAll(where: {$0.service?.peripheral?.identifier.uuidString == peripheral.identifier.uuidString})
+        
+    
         _dataQueue = nil
         if let error: Error = error {
             _resultCallback?(error.toFlutterError())
@@ -287,11 +284,11 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
               error == nil,
               let service: CBService = services.first(where: { $0.isPrimary })
         else {
-            _connectedDeviceService = nil
+            _connectedDeviceService = []
             return
         }
         
-        _connectedDeviceService = service
+        _connectedDeviceService.append(service)
         peripheral.discoverCharacteristics(nil, for: service)
     }
     
