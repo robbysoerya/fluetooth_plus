@@ -226,6 +226,7 @@ class _MyAppState extends State<MyApp> {
           : ListView.builder(
               itemBuilder: (_, int index) {
                 final FluetoothDevice currentDevice = _devices![index];
+                if (currentDevice.name.isEmpty) return Container();
                 return ListTile(
                   title: Text(currentDevice.name),
                   subtitle: Text(currentDevice.id),

@@ -21,10 +21,15 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         }
     }
     
-    var isConnected: Bool {
-        get {
-            return _connectedDevice != nil
+    
+    func isConnected(_ uuidString: String, resultCallback: @escaping FlutterResult) {
+        for device in _connectedDevice {
+            if (device.identifier.uuidString == uuidString) {
+                resultCallback(true)
+                break
+            }
         }
+        resultCallback(false)
     }
     
     private var _availableDeviceUUIDStrings: Set<String> = []
@@ -35,15 +40,15 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         }
     }
 
-    private var _connectedDevice: CBPeripheral?
-    var connectedDevice: [String:String]? {
+    private var _connectedDevice: [CBPeripheral] = []
+    var connectedDevice: [[String:String]]? {
         get {
-            return _connectedDevice?.toMap()
+            return _connectedDevice.map { $0.toMap() }
         }
     }
     
     private var _connectedDeviceService: CBService?
-    private var _connectedDeviceCharacteristic: CBCharacteristic?
+    private var _connectedDeviceCharacteristic: [CBCharacteristic] = []
     private var _dataQueue: DataQueue?
 
     private var _resultCallback: FlutterResult?
@@ -61,12 +66,12 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
             guard let self: FluetoothManager = self else {
                 return
             }
-            if self._connectedDevice == nil {
+            if self._connectedDevice == [] {
                 self._availableDeviceUUIDStrings = []
                 self._availableDevices = []
             } else {
-                self._availableDeviceUUIDStrings = [self._connectedDevice!.identifier.uuidString]
-                self._availableDevices = [self._connectedDevice!]
+                self._availableDeviceUUIDStrings = Set(self._connectedDevice.map{$0.identifier.uuidString})
+                self._availableDevices = self._connectedDevice.map{$0}
             }
             self._centralManager?.scanForPeripherals(
                 withServices: nil,
@@ -98,6 +103,7 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
                 resultCallback(FluetoothError(message: "Device not found").toFlutterError())
                 return
             }
+
             
             self._resultCallback = resultCallback
             self._centralManager?.connect(peripheral)
@@ -105,21 +111,26 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         
     }
     
-    func sendBytes(_ bytes: Data, resultCallback: @escaping FlutterResult) {
+    func sendBytes(_ bytes: Data, uuidString: String, resultCallback: @escaping FlutterResult) {
         _executor.add { [weak self] in
             guard let self: FluetoothManager = self else {
                 return
             }
-            guard let connectedDevice: CBPeripheral = self._connectedDevice else {
+            guard let connectedDevice: CBPeripheral = self._connectedDevice.first(where: {$0.identifier.uuidString == uuidString}) else {
                 resultCallback(FluetoothError(message: "No device connected").toFlutterError())
                 self._executor.next()
+                print("Masuk else connectedDevice")
                 return
             }
-            guard let characteristic: CBCharacteristic = self._connectedDeviceCharacteristic else {
+            guard let characteristic: CBCharacteristic = self._connectedDeviceCharacteristic.first(where: {$0.service!.peripheral!.identifier.uuidString == uuidString}) else {
                 resultCallback(FluetoothError(message: "Failed to discover device characteristics").toFlutterError())
                 self._executor.next()
+                
+                print(uuidString)
+                print(self._connectedDeviceCharacteristic)
                 return
             }
+            
             
             let isDeviceSupportWriteWithResponse: Bool = characteristic.properties.contains(.write)
             if isDeviceSupportWriteWithResponse {
@@ -167,11 +178,11 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
             self._executor.next()
         }
     }
-
-    func disconnect(_ resultCallback: @escaping FlutterResult) {
+    
+    func disconnectDevice(_ uuidString: String, resultCallback: @escaping FlutterResult) {
         _executor.add { [weak self] in
             guard let self: FluetoothManager = self,
-                  let connectedDevice: CBPeripheral = self._connectedDevice
+                  let connectedDevice: CBPeripheral = self._connectedDevice.first(where: {$0.identifier.uuidString == uuidString})
             else {
                 return
             }
@@ -180,12 +191,27 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         }
     }
 
+    func disconnect(_ resultCallback: @escaping FlutterResult) {
+        _executor.add { [weak self] in
+            guard let self: FluetoothManager = self
+            else {
+                return
+            }
+            self._resultCallback = resultCallback
+            
+            for device in self._connectedDevice {
+                self._centralManager?.cancelPeripheralConnection(device)
+            }
+           
+        }
+    }
+
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         switch central.state {
         case .resetting, .poweredOff:
-            _connectedDevice = nil
+            _connectedDevice = []
             _connectedDeviceService = nil
-            _connectedDeviceCharacteristic = nil
+            _connectedDeviceCharacteristic = []
             _availableDevices = []
             _availableDeviceUUIDStrings = []
             _executor.clear()
@@ -202,12 +228,11 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         _ central: CBCentralManager,
         didConnect peripheral: CBPeripheral
     ) {
-        _connectedDevice = peripheral
-        _connectedDevice!.delegate = self
+        peripheral.delegate = self
+        peripheral.discoverServices(nil)
+        _connectedDevice.append(peripheral)
+      
         _connectedDeviceService = nil
-        _connectedDeviceCharacteristic = nil
-        _connectedDevice!.discoverServices(nil)
-        
         _resultCallback?(connectedDevice!)
         _resultCallback = nil
         _executor.next()
@@ -218,9 +243,9 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         didDisconnectPeripheral peripheral: CBPeripheral,
         error: Error?
     ) {
-        _connectedDevice = nil
+        _connectedDevice = []
         _connectedDeviceService = nil
-        _connectedDeviceCharacteristic = nil
+        _connectedDeviceCharacteristic = []
         _dataQueue = nil
         _resultCallback?(error?.toFlutterError() ?? true)
         _resultCallback = nil
@@ -232,9 +257,9 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         didFailToConnect peripheral: CBPeripheral,
         error: Error?
     ) {
-        _connectedDevice = nil
+        _connectedDevice = []
         _connectedDeviceService = nil
-        _connectedDeviceCharacteristic = nil
+        _connectedDeviceCharacteristic = []
         _dataQueue = nil
         if let error: Error = error {
             _resultCallback?(error.toFlutterError())
@@ -278,14 +303,14 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         guard error == nil,
               let characteristics: [CBCharacteristic] = service.characteristics
         else {
-            _connectedDeviceCharacteristic = nil
+            _connectedDeviceCharacteristic = []
             return
         }
         
         for characteristic in characteristics {
             let props: CBCharacteristicProperties = characteristic.properties
             if props.contains(.write) || props.contains(.writeWithoutResponse) {
-                _connectedDeviceCharacteristic = characteristic
+                _connectedDeviceCharacteristic.append(characteristic)
                 break
             }
         }
