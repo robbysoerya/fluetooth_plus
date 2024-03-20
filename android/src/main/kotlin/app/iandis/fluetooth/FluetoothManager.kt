@@ -59,6 +59,7 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                 _executor.execute {
                     try {
                         if (!isConnected(deviceAddress)) {
+                            disconnectDevice(deviceAddress)
                             onError(Exception("No device connected!"))
                             return@execute
                         }
@@ -71,8 +72,6 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                                 onComplete()
                             }
                         }
-
-
                     } catch (t: Throwable) {
                         onError(t)
                     }
