@@ -79,6 +79,7 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
                     CBCentralManagerScanOptionAllowDuplicatesKey: false
                 ]
             )
+          
             self._executor.delayed(deadline: .now() + 1) { [weak self] in
                 guard let self: FluetoothManager = self else {
                     return
@@ -213,6 +214,20 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
             _dataQueue = nil
             _resultCallback?(FluetoothError(message: "Bluetooth powered off").toFlutterError())
             _resultCallback = nil
+        case .poweredOn:
+            self._centralManager?.scanForPeripherals(
+                withServices: nil,
+                options: [
+                    CBCentralManagerScanOptionAllowDuplicatesKey: false
+                ]
+            )
+          
+            self._executor.delayed(deadline: .now() + 1) { [weak self] in
+                guard let self: FluetoothManager = self else {
+                    return
+                }
+                self._centralManager?.stopScan()
+            }
         default:
             // no-op
             return

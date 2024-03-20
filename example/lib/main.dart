@@ -28,7 +28,7 @@ class _MyAppState extends State<MyApp> {
       Completer<CapabilityProfile>();
 
   bool _isBusy = false;
-  List<FluetoothDevice>? _devices;
+  List<FluetoothDevice> _devices = [];
   List<FluetoothDevice> _connectedDevice = [];
 
   @override
@@ -49,10 +49,10 @@ class _MyAppState extends State<MyApp> {
       return;
     }
     setState(() => _isBusy = true);
-    final List<FluetoothDevice> devices =
-        await Fluetooth().getAvailableDevices();
+    await Fluetooth().getAvailableDevices().then((value) {
+      _devices = value;
+    });
     setState(() {
-      _devices = devices;
       _isBusy = false;
     });
   }
@@ -221,7 +221,7 @@ class _MyAppState extends State<MyApp> {
           ),
         ],
       ),
-      body: _devices == null || _devices!.isEmpty
+      body: _devices!.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
               itemBuilder: (_, int index) {
