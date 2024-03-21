@@ -25,10 +25,13 @@ public class SwiftFluetoothPlugin: NSObject, FlutterPlugin {
             let isAvailable: Bool = _fluetoothManager!.isAvailable
             result(isAvailable)
         case "isConnected":
-            let isConnected: Bool = _fluetoothManager!.isConnected
-            result(isConnected)
+            guard let uuidString: String = call.arguments as? String else {
+                result(FluetoothError(message: "Invalid argument for method [isConnected]").toFlutterError())
+                return
+            }
+             _fluetoothManager!.isConnected(uuidString,resultCallback: result)
         case "connectedDevice":
-            let connectedDevice: [String:String]? = _fluetoothManager!.connectedDevice
+            let connectedDevice: [[String:String]]? = _fluetoothManager!.connectedDevice
             result(connectedDevice)
         case "getAvailableDevices":
             _fluetoothManager!.getAvailableDevices(result)
@@ -41,6 +44,12 @@ public class SwiftFluetoothPlugin: NSObject, FlutterPlugin {
                 uuidString: uuidString,
                 resultCallback: result
             )
+        case "disconnectDevice":
+            guard let uuidString: String = call.arguments as? String else {
+                result(FluetoothError(message: "Invalid argument for method [disconnectDevice]").toFlutterError())
+                return
+            }
+            _fluetoothManager!.disconnectDevice(uuidString,resultCallback: result)
         case "disconnect":
             _fluetoothManager!.disconnect(result)
         case "sendBytes":
@@ -49,11 +58,12 @@ public class SwiftFluetoothPlugin: NSObject, FlutterPlugin {
                 return
             }
             
-            guard let bytes: FlutterStandardTypedData = data["bytes"] as? FlutterStandardTypedData else {
+            guard let bytes: FlutterStandardTypedData = data["bytes"] as? FlutterStandardTypedData,
+                    let uuidString: String = data["device"] as? String else {
                 result(FluetoothError(message: "Invalid payload for ['bytes']").toFlutterError())
                 return
             }
-            _fluetoothManager!.sendBytes(bytes.data, resultCallback: result)
+            _fluetoothManager!.sendBytes(bytes.data, uuidString: uuidString, resultCallback: result)
         default:
             result(FlutterMethodNotImplemented)
         }

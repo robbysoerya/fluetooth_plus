@@ -1,6 +1,6 @@
 name: fluetooth_example
 description: Demonstrates how to use the fluetooth plugin.
-
+version: 1.0.1
 publish_to: 'none' 
 
 environment:
