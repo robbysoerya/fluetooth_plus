@@ -1,11 +1,12 @@
 import 'dart:async';
+import 'dart:developer';
+
 import 'package:esc_pos_gen/esc_pos_gen.dart';
+import 'package:fluetooth/fluetooth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
-
-import 'package:fluetooth/fluetooth.dart';
 
 void main() {
   runApp(
@@ -28,7 +29,7 @@ class _MyAppState extends State<MyApp> {
 
   bool _isBusy = false;
   List<FluetoothDevice>? _devices;
-  FluetoothDevice? _connectedDevice;
+  List<FluetoothDevice> _connectedDevice = [];
 
   @override
   void initState() {
@@ -48,7 +49,8 @@ class _MyAppState extends State<MyApp> {
       return;
     }
     setState(() => _isBusy = true);
-    final List<FluetoothDevice> devices = await Fluetooth().getAvailableDevices();
+    final List<FluetoothDevice> devices =
+        await Fluetooth().getAvailableDevices();
     setState(() {
       _devices = devices;
       _isBusy = false;
@@ -60,29 +62,64 @@ class _MyAppState extends State<MyApp> {
       return;
     }
     setState(() => _isBusy = true);
-    final FluetoothDevice connectedDevice = await Fluetooth().connect(
-      device.id,
-    );
+
+    try {
+      await Fluetooth().connect(
+        device.id,
+      );
+    } catch (e) {
+      log(e.toString());
+    }
+
+    await Fluetooth().connectedDevice.then((value) {
+      _connectedDevice = value;
+    });
 
     setState(() {
       _isBusy = false;
-      _connectedDevice = connectedDevice;
     });
   }
 
-  Future<void> _disconnect() async {
+  Future<void> _disconnect(FluetoothDevice device) async {
     if (_isBusy) {
       return;
     }
     setState(() => _isBusy = true);
-    await Fluetooth().disconnect();
+    await Fluetooth().disconnectDevice(device.id);
+    await Fluetooth().connectedDevice.then((value) {
+      _connectedDevice = value;
+    });
     setState(() {
       _isBusy = false;
-      _connectedDevice = null;
     });
   }
 
-  Future<void> _print() async {
+  void showPrintDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: _connectedDevice.map<Widget>((device) {
+                return ListTile(
+                  title: Text(device.name),
+                  onTap: () => _print(deviceId: device.id),
+                );
+              }).toList()
+                ..add(ListTile(
+                  title: const Text('Semua'),
+                  onTap: () => _print(),
+                )),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _print({String? deviceId}) async {
     if (_isBusy) {
       return;
     }
@@ -100,10 +137,10 @@ class _MyAppState extends State<MyApp> {
     );
     final List<PosComponent> components = <PosComponent>[
       PosImage(image: resizedImg),
-      const PosText.center('My Store'),
+      PosText.center('Mac Address: $deviceId'),
       const PosSeparator(),
       PosList.builder(
-        count: 20,
+        count: 5,
         builder: (int i) {
           return PosList(
             <PosComponent>[
@@ -139,7 +176,27 @@ class _MyAppState extends State<MyApp> {
       components: components,
     );
 
-    await Fluetooth().sendBytes(paper.bytes);
+    if (deviceId == null) {
+      for (var device in _connectedDevice) {
+        try {
+          await Fluetooth().sendBytes(paper.bytes, device.id);
+        } catch (_) {
+          await _disconnect(device);
+        }
+      }
+    } else {
+      for (var device in _connectedDevice) {
+        if (device.id == deviceId) {
+          try {
+            await Fluetooth().sendBytes(paper.bytes, device.id);
+          } catch (_) {
+            await _disconnect(device);
+          }
+          break;
+        }
+      }
+    }
+
     setState(() => _isBusy = false);
   }
 
@@ -149,7 +206,9 @@ class _MyAppState extends State<MyApp> {
       appBar: AppBar(
         actions: <Widget>[
           TextButton(
-            onPressed: _connectedDevice != null && !_isBusy ? _print : null,
+            onPressed: _connectedDevice.isNotEmpty && !_isBusy
+                ? showPrintDialog
+                : null,
             style: TextButton.styleFrom(
               primary: Colors.amber,
             ),
@@ -171,14 +230,13 @@ class _MyAppState extends State<MyApp> {
                   title: Text(currentDevice.name),
                   subtitle: Text(currentDevice.id),
                   trailing: ElevatedButton(
-                    onPressed:
-                        _connectedDevice == currentDevice
-                            ? _disconnect
-                            : _connectedDevice == null && !_isBusy
-                                ? () => _connect(currentDevice)
-                                : null,
+                    onPressed: () {
+                      _connectedDevice.contains(currentDevice)
+                          ? _disconnect(currentDevice)
+                          : _connect(currentDevice);
+                    },
                     child: Text(
-                      _connectedDevice == currentDevice
+                      _connectedDevice.contains(currentDevice)
                           ? 'Disconnect'
                           : 'Connect',
                     ),

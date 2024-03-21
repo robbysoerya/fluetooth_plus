@@ -1,5 +1,5 @@
-import 'fluetooth_device.dart';
 import 'fluetooth.dart';
+import 'fluetooth_device.dart';
 
 class FluetoothImpl implements Fluetooth {
   factory FluetoothImpl() => _instance;
@@ -14,7 +14,7 @@ class FluetoothImpl implements Fluetooth {
   }
 
   @override
-  Future<FluetoothDevice?> get connectedDevice {
+  Future<List<FluetoothDevice>> get connectedDevice {
     throw UnsupportedError('Fluetooth is not supported on this platform');
   }
 
@@ -34,12 +34,17 @@ class FluetoothImpl implements Fluetooth {
   }
 
   @override
-  Future<bool> get isConnected {
+  Future<bool> isConnected(String deviceId) {
     throw UnsupportedError('Fluetooth is not supported on this platform');
   }
 
   @override
-  Future<void> sendBytes(List<int> bytes) {
+  Future<void> sendBytes(List<int> bytes, String deviceId) {
+    throw UnsupportedError('Fluetooth is not supported on this platform');
+  }
+
+  @override
+  Future<void> disconnectDevice(String deviceId) {
     throw UnsupportedError('Fluetooth is not supported on this platform');
   }
 }
