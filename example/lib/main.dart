@@ -210,7 +210,7 @@ class _MyAppState extends State<MyApp> {
                 ? showPrintDialog
                 : null,
             style: TextButton.styleFrom(
-              primary: Colors.amber,
+              foregroundColor: Colors.amber,
             ),
             child: const Text('Print'),
           ),
@@ -221,11 +221,11 @@ class _MyAppState extends State<MyApp> {
           ),
         ],
       ),
-      body: _devices!.isEmpty
+      body: _devices.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
               itemBuilder: (_, int index) {
-                final FluetoothDevice currentDevice = _devices![index];
+                final FluetoothDevice currentDevice = _devices[index];
                 if (currentDevice.name.isEmpty) return Container();
                 return ListTile(
                   title: Text(currentDevice.name),
@@ -244,7 +244,7 @@ class _MyAppState extends State<MyApp> {
                   ),
                 );
               },
-              itemCount: _devices!.length,
+              itemCount: _devices.length,
             ),
     );
   }
