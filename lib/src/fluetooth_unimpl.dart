@@ -14,7 +14,7 @@ class FluetoothImpl implements Fluetooth {
   }
 
   @override
-  Future<List<FluetoothDevice>> get connectedDevice {
+  Future<List<FluetoothDevice>> getConnectedDevice() {
     throw UnsupportedError('Fluetooth is not supported on this platform');
   }
 

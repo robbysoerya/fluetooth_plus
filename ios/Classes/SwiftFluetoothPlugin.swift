@@ -31,19 +31,28 @@ public class SwiftFluetoothPlugin: NSObject, FlutterPlugin {
             }
              _fluetoothManager!.isConnected(uuidString,resultCallback: result)
         case "connectedDevice":
-            let connectedDevice: [[String:String]]? = _fluetoothManager!.connectedDevice
-            result(connectedDevice)
+            _fluetoothManager!.getConnectedDevices(result)
         case "getAvailableDevices":
             _fluetoothManager!.getAvailableDevices(result)
-        case "connect":
-            guard let uuidString: String = call.arguments as? String else {
-                result(FluetoothError(message: "Invalid argument for method [connect]").toFlutterError())
-                return
-            }
-            _fluetoothManager!.connect(
-                uuidString: uuidString,
-                resultCallback: result
-            )
+       case "connect":
+           guard let targetDevice = call.arguments as? String else {
+               result(FluetoothError(message: "targetDevice should be a string").toFlutterError())
+               return
+           }
+           if !_fluetoothManager!.isAvailable {
+               result(FluetoothError(message: "Bluetooth is not available.").toFlutterError())
+               return
+           }
+           _fluetoothManager!.connect(
+               uuidString: targetDevice,
+               resultCallback: { device in
+                   guard let connectedDevice = device as? [String: String] else {
+                       result(FluetoothError(message: "Failed to connect to \(targetDevice)").toFlutterError())
+                       return
+                   }
+                   result(connectedDevice)
+               }
+           )
         case "disconnectDevice":
             guard let uuidString: String = call.arguments as? String else {
                 result(FluetoothError(message: "Invalid argument for method [disconnectDevice]").toFlutterError())

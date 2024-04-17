@@ -41,12 +41,12 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
     }
 
     private var _connectedDevice: [CBPeripheral] = []
-    var connectedDevice: [[String:String]]? {
+    private var connectedDevice: [[String:String]] {
         get {
             return _connectedDevice.map { $0.toMap() }
         }
     }
-    
+
     private var _connectedDeviceService: [CBService] = []
     private var _connectedDeviceCharacteristic: [CBCharacteristic] = []
     private var _dataQueue: DataQueue?
@@ -60,7 +60,11 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
             queue: .global(qos: .background)
         )
     }
-    
+
+    func getConnectedDevices(_ resultCallback: @escaping FlutterResult) {
+        resultCallback(self.connectedDevice)
+    }
+
     func getAvailableDevices(_ resultCallback: @escaping FlutterResult) {
         _executor.add { [weak self] in
             guard let self: FluetoothManager = self else {
@@ -79,7 +83,7 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
                     CBCentralManagerScanOptionAllowDuplicatesKey: false
                 ]
             )
-          
+
             self._executor.delayed(deadline: .now() + 1) { [weak self] in
                 guard let self: FluetoothManager = self else {
                     return
@@ -89,15 +93,15 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
             }
         }
     }
-    
+
     func connect(uuidString: String, resultCallback: @escaping FlutterResult) {
         _executor.add { [weak self] in
             guard let self: FluetoothManager = self else {
                 return
             }
-            
+
             let uuid: UUID = UUID(uuidString: uuidString)!
-            
+
             guard let peripheral: CBPeripheral = self._availableDevices.first(
                 where: { $0.identifier == uuid }
             ) else {
@@ -108,9 +112,8 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
             self._resultCallback = resultCallback
             self._centralManager?.connect(peripheral)
         }
-        
     }
-    
+
     func sendBytes(_ bytes: Data, uuidString: String, resultCallback: @escaping FlutterResult) {
         _executor.add { [weak self] in
             guard let self: FluetoothManager = self else {
@@ -126,8 +129,8 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
                 self._executor.next()
                 return
             }
-            
-            
+
+
             let isDeviceSupportWriteWithResponse: Bool = characteristic.properties.contains(.write)
             if isDeviceSupportWriteWithResponse {
                 let maxBytesPerWrite: Int = connectedDevice.maximumWriteValueLength(
@@ -151,7 +154,7 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
                 )
                 return
             }
-            
+
             let canSendWriteWithoutResponse: Bool
             if #available(iOS 11.0, *) {
                 canSendWriteWithoutResponse = connectedDevice.canSendWriteWithoutResponse
@@ -169,12 +172,12 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
                 self._executor.next()
                 return
             }
-            
+
             resultCallback(FluetoothError(message: "The device does not support receiving bytes").toFlutterError())
             self._executor.next()
         }
     }
-    
+
     func disconnectDevice(_ uuidString: String, resultCallback: @escaping FlutterResult) {
         _executor.add { [weak self] in
             guard let self: FluetoothManager = self,
@@ -194,11 +197,11 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
                 return
             }
             self._resultCallback = resultCallback
-            
+
             for device in self._connectedDevice {
                 self._centralManager?.cancelPeripheralConnection(device)
             }
-           
+
         }
     }
 
@@ -221,7 +224,7 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
                     CBCentralManagerScanOptionAllowDuplicatesKey: false
                 ]
             )
-          
+
             self._executor.delayed(deadline: .now() + 1) { [weak self] in
                 guard let self: FluetoothManager = self else {
                     return
@@ -233,15 +236,21 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
             return
         }
     }
-    
+
     func centralManager(
         _ central: CBCentralManager,
         didConnect peripheral: CBPeripheral
     ) {
-        peripheral.delegate = self
-        peripheral.discoverServices(nil)
-        _connectedDevice.append(peripheral)
-        _resultCallback?(connectedDevice!)
+
+        if  _connectedDevice.contains(peripheral) {
+            _resultCallback?(peripheral)
+        } else {
+            peripheral.delegate = self
+            peripheral.discoverServices(nil)
+            _connectedDevice.append(peripheral)
+            _resultCallback?(connectedDevice)
+        }
+
         _resultCallback = nil
         _executor.next()
     }
