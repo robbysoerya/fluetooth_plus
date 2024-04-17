@@ -71,7 +71,7 @@ class _MyAppState extends State<MyApp> {
       log(e.toString());
     }
 
-    await Fluetooth().connectedDevice.then((value) {
+    await Fluetooth().getConnectedDevice().then((value) {
       _connectedDevice = value;
     });
 
@@ -86,7 +86,7 @@ class _MyAppState extends State<MyApp> {
     }
     setState(() => _isBusy = true);
     await Fluetooth().disconnectDevice(device.id);
-    await Fluetooth().connectedDevice.then((value) {
+    await Fluetooth().getConnectedDevice().then((value) {
       _connectedDevice = value;
     });
     setState(() {

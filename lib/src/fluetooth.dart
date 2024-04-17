@@ -34,7 +34,7 @@ abstract class Fluetooth {
   /// * `false` if not available/unsupported/unauthorized
   Future<bool> get isAvailable;
 
-  Future<List<FluetoothDevice>> get connectedDevice;
+  Future<List<FluetoothDevice>> getConnectedDevice();
 
   Future<void> sendBytes(List<int> bytes, String deviceId);
 

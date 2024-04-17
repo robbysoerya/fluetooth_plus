@@ -33,7 +33,7 @@ class FluetoothImpl implements Fluetooth {
   }
 
   @override
-  Future<List<FluetoothDevice>> get connectedDevice async {
+  Future<List<FluetoothDevice>> getConnectedDevice() async {
     final List<Map<Object?, Object?>>? responseMap = await _channel
         .invokeListMethod<Map<Object?, Object?>>('connectedDevice');
 
