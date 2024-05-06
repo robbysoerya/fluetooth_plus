@@ -94,8 +94,17 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
 
         for (device: BluetoothDevice in _connectedDevice) {
             if (device.address.equals(deviceAddress)) {
-                _connectedDevice.remove(device)
-                _socket.removeAll { it.remoteDevice == device }
+                for (socket: BluetoothSocket in _socket) {
+                    if (socket.remoteDevice == device) {
+                        if (socket.isConnected) {
+                            onResult(device)
+                        } else {
+                            disconnectDevice(deviceAddress)
+                        }
+                        break
+                    }
+                }
+                break
             }
         }
 
