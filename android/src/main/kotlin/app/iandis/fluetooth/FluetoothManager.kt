@@ -73,6 +73,7 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                             }
                         }
                     } catch (t: Throwable) {
+                        disconnectDevice(deviceAddress)
                         onError(t)
                     }
                 }
@@ -93,6 +94,7 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
         for (device: BluetoothDevice in _connectedDevice) {
             if (device.address.equals(deviceAddress)) {
                 _connectedDevice.remove(device)
+                break
             }
         }
 
