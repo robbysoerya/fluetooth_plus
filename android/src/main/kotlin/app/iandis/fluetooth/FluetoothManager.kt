@@ -69,10 +69,12 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                     onComplete()
                 } ?: run {
                     onError(Exception("Socket not found for device $deviceAddress"))
+                    return@execute
                 }
             } catch (t: Throwable) {
                 disconnectDevice(deviceAddress)
                 onError(t)
+                return@execute
             }
         }
 
