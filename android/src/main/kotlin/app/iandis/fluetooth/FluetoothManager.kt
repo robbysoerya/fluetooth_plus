@@ -55,30 +55,36 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
     }
 
     fun send(bytes: ByteArray, deviceAddress: String, onComplete: () -> Unit, onError: (Throwable) -> Unit) {
-        for (device: BluetoothDevice in _connectedDevice) {
-            if (device.address.equals(deviceAddress)) {
-                _executor.execute {
-                    try {
-                        if (!isConnected(deviceAddress)) {
-                            disconnectDevice(deviceAddress)
-                            onError(Exception("No device connected!"))
-                            return@execute
-                        }
+        // Find the connected device with the specified address
+        val device = _connectedDevice.find { it.address == deviceAddress }
 
-                        for (socket: BluetoothSocket in _socket) {
-                            if (socket.remoteDevice.address.equals(deviceAddress)) {
-                                val os: OutputStream = socket.outputStream
-                                os.write(bytes)
-                                os.flush()
-                                onComplete()
-                            }
-                        }
-                    } catch (t: Throwable) {
-                        disconnectDevice(deviceAddress)
-                        onError(t)
-                    }
+        if (device == null) {
+            onError(Exception("No device connected!"))
+            return
+        }
+
+        _executor.execute {
+            try {
+                if (!isConnected(deviceAddress)) {
+                    disconnectDevice(deviceAddress)
+                    onError(Exception("No device connected!"))
+                    return@execute
                 }
-                break
+
+                // Find the socket associated with the device
+                val socket = _socket.find { it.remoteDevice.address == deviceAddress }
+
+                if (socket != null) {
+                    val os: OutputStream = socket.outputStream
+                    os.write(bytes)
+                    os.flush()
+                    onComplete()
+                } else {
+                    onError(Exception("Socket not found for device $deviceAddress"))
+                }
+            } catch (t: Throwable) {
+                disconnectDevice(deviceAddress)
+                onError(t)
             }
         }
 
