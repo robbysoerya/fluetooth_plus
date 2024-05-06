@@ -125,7 +125,10 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                 _socket.add(mSocket)
                 onResult(currentDevice)
             } catch (t: Throwable) {
+                Log.d("connect", "device error to connect")
+                disconnectDevice(deviceAddress)
                 onError(t)
+                return@execute
             }
         }
     }
