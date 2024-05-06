@@ -3,6 +3,7 @@ package app.iandis.fluetooth
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
+import android.util.Log
 import java.io.OutputStream
 import java.lang.Exception
 import java.util.UUID
@@ -96,12 +97,12 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
             for (socket: BluetoothSocket in _socket) {
                 if (socket.remoteDevice.address.equals(deviceAddress)) {
                     if (socket.isConnected) {
-                        print("connected nih")
+                        Log.d("socket","connected nih")
                         onResult(socket.remoteDevice)
                         return
                     } else {
                         disconnectDevice(deviceAddress)
-                        print("gak connected nih")
+                        Log.d("socket","gak connected nih")
                         break
                     }
                 }
@@ -130,7 +131,7 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                 _socket.add(mSocket)
                 onResult(currentDevice)
             } catch (t: Throwable) {
-                _connectedDevice.remove(currentDevice)
+                disconnectDevice(deviceAddress)
                 onError(t)
             }
         }
