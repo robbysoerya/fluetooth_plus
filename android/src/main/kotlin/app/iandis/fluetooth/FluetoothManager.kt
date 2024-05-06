@@ -26,12 +26,7 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
      * */
 
     fun isConnected(deviceAddress: String): Boolean {
-        for (socket: BluetoothSocket in _socket) {
-            if (socket.remoteDevice.address.equals(deviceAddress)) {
-                return socket.isConnected
-            }
-        }
-        return false
+        return _socket.any { it.remoteDevice.address == deviceAddress && it.isConnected }
     }
 
     /**
@@ -74,12 +69,12 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                 // Find the socket associated with the device
                 val socket = _socket.find { it.remoteDevice.address == deviceAddress }
 
-                if (socket != null) {
-                    val os: OutputStream = socket.outputStream
+                socket?.let {
+                    val os: OutputStream = it.outputStream
                     os.write(bytes)
                     os.flush()
                     onComplete()
-                } else {
+                } ?: run {
                     onError(Exception("Socket not found for device $deviceAddress"))
                 }
             } catch (t: Throwable) {
@@ -99,20 +94,20 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
 
         var currentDevice: BluetoothDevice? = null
 
-        if (_socket.isNotEmpty()) {
-            for (socket: BluetoothSocket in _socket) {
-                if (socket.remoteDevice.address.equals(deviceAddress)) {
-                    socket.connect()
-                    if (socket.isConnected) {
-                        onResult(socket.remoteDevice)
-                        return
-                    } else {
-                        disconnectDevice(deviceAddress)
-                        break
-                    }
-                }
-            }
-        }
+//        if (_socket.isNotEmpty()) {
+//            for (socket: BluetoothSocket in _socket) {
+//                if (socket.remoteDevice.address.equals(deviceAddress)) {
+//                    socket.connect()
+//                    if (socket.isConnected) {
+//                        onResult(socket.remoteDevice)
+//                        return
+//                    } else {
+//                        disconnectDevice(deviceAddress)
+//                        break
+//                    }
+//                }
+//            }
+//        }
 
         val bondedDevices: Set<BluetoothDevice> = _adapter!!.bondedDevices
         if (bondedDevices.isNotEmpty()) {
@@ -136,7 +131,6 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                 _socket.add(mSocket)
                 onResult(currentDevice)
             } catch (t: Throwable) {
-                disconnectDevice(deviceAddress)
                 onError(t)
             }
         }
