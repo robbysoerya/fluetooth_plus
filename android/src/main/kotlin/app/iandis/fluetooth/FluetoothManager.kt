@@ -104,12 +104,10 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                 if (socket.remoteDevice.address.equals(deviceAddress)) {
                     socket.connect()
                     if (socket.isConnected) {
-                        Log.d("socket","connected nih")
                         onResult(socket.remoteDevice)
                         return
                     } else {
                         disconnectDevice(deviceAddress)
-                        Log.d("socket","gak connected nih")
                         break
                     }
                 }
