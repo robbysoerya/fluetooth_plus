@@ -102,6 +102,7 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
         if (_socket.isNotEmpty()) {
             for (socket: BluetoothSocket in _socket) {
                 if (socket.remoteDevice.address.equals(deviceAddress)) {
+                    socket.connect()
                     if (socket.isConnected) {
                         Log.d("socket","connected nih")
                         onResult(socket.remoteDevice)
