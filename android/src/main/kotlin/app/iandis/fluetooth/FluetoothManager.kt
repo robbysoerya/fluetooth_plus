@@ -100,7 +100,8 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                 return
             } else {
                 Log.d("connect", "device not connected")
-                disconnectDevice(deviceAddress)
+                onError(Exception("Device not connected"))
+                return
             }
         }
 
@@ -126,7 +127,6 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
                 onResult(currentDevice)
             } catch (t: Throwable) {
                 Log.d("connect", "device error to connect")
-                disconnectDevice(deviceAddress)
                 onError(t)
                 return@execute
             }
