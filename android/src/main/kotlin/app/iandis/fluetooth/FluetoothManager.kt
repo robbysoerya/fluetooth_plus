@@ -90,7 +90,15 @@ class FluetoothManager(private val _adapter: BluetoothAdapter?) {
         val existingDevice = _socket.find { it.remoteDevice.address == deviceAddress }
 
         if (existingDevice != null) {
-            existingDevice.connect()
+
+            try {
+                existingDevice.connect()
+            } catch (t: Throwable) {
+                Log.d("connect", "device can't connect")
+                disconnectDevice(deviceAddress)
+                onError(t)
+                return
+            }
 
             if (existingDevice.isConnected) {
                 Log.d("connect", "device already connected")
