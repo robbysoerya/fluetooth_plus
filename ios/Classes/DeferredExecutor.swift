@@ -5,17 +5,24 @@
 //  Created by Iandi Santulus on 27/12/21.
 //
 
+//
+//  SerialExecutor.swift
+//  fluetooth
+//
+//  Created by Iandi Santulus on 27/12/21.
+//
+
 import Foundation
 
 class DeferredExecutor {
-    
+
     private let _dispatcher: DispatchQueue = DispatchQueue(
         label: "fluetooth-executor",
         qos: .background
     )
-    private var _tasks: [() -> Void] = []
-    private var _activeTask: (() -> Void)?
-    
+    private var _tasks: [() throws -> Void] = []
+    private var _activeTask: (() throws -> Void)?
+
     func now(_ callback: @escaping () throws -> Void) {
         _dispatcher.sync {
             try? callback()
@@ -36,7 +43,7 @@ class DeferredExecutor {
             next()
         }
     }
-    
+
     func delayed(
         onCompleteNext: Bool = true,
         deadline: DispatchTime,
@@ -51,16 +58,24 @@ class DeferredExecutor {
     }
 
     func next() {
-        _activeTask = _tasks.isEmpty ? nil : _tasks.removeFirst()
-        if _activeTask != nil {
-            _dispatcher.sync {
-                _activeTask!()
-            }
+        guard let task = _tasks.first else {
+            _activeTask = nil
+            return
+        }
+
+        _activeTask = task
+        _tasks.removeFirst()
+
+        do {
+            try _activeTask?()
+        } catch {
+            print("Error executing task: \(error)")
         }
     }
-    
+
     func clear() {
         _tasks = []
         _activeTask = nil
     }
 }
+
