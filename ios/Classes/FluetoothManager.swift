@@ -65,34 +65,44 @@ class FluetoothManager: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
         resultCallback(self.connectedDevice)
     }
 
-    func getAvailableDevices(_ resultCallback: @escaping FlutterResult) {
-        _executor.add { [weak self] in
-            guard let self: FluetoothManager = self else {
-                return
-            }
-            if self._connectedDevice == [] {
-                self._availableDeviceUUIDStrings = []
-                self._availableDevices = []
-            } else {
-                self._availableDeviceUUIDStrings = Set(self._connectedDevice.map{$0.identifier.uuidString})
-                self._availableDevices = self._connectedDevice.map{$0}
-            }
-            self._centralManager?.scanForPeripherals(
-                withServices: nil,
-                options: [
-                    CBCentralManagerScanOptionAllowDuplicatesKey: false
-                ]
-            )
+   func getAvailableDevices(_ resultCallback: @escaping FlutterResult) {
+       _executor.add { [weak self] in
+           guard let self = self else { return }
 
-            self._executor.delayed(deadline: .now() + 1) { [weak self] in
-                guard let self: FluetoothManager = self else {
-                    return
-                }
-                self._centralManager?.stopScan()
-                resultCallback(self._availableDevicesMap)
-            }
-        }
-    }
+           // Check if _centralManager is not nil
+           guard let centralManager = self._centralManager else {
+               // Handle the case where centralManager is nil (e.g., Bluetooth not available)
+               resultCallback([])
+               return
+           }
+
+           if self._connectedDevice == [] {
+               self._availableDeviceUUIDStrings = []
+               self._availableDevices = []
+           } else {
+               self._availableDeviceUUIDStrings = Set(self._connectedDevice.map { $0.identifier.uuidString })
+               self._availableDevices = self._connectedDevice.map { $0 }
+           }
+
+           centralManager.scanForPeripherals(
+               withServices: nil,
+               options: [
+                   CBCentralManagerScanOptionAllowDuplicatesKey: false
+               ]
+           )
+
+           self._executor.delayed(deadline: .now() + 1) { [weak self] in
+               guard let self = self else { return }
+
+               // Check if self is not nil before calling resultCallback
+               if self._centralManager != nil {
+                   self._centralManager?.stopScan()
+                   resultCallback(self._availableDevicesMap)
+               }
+           }
+       }
+   }
+
 
     func connect(uuidString: String, resultCallback: @escaping FlutterResult) {
         _executor.add { [weak self] in
