@@ -1,3 +1,9 @@
+## 1.0.0
+
+- Forked from [fluetooth](https://github.com/youtaplibrary/fluetooth)
+- Fixed deprecated code in test files
+- Improved stability and performance
+
 ## 0.0.6
 
 - fix(android): remove unused code that causes failure on ci/cd pipeline
