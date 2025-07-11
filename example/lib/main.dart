@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:developer';
 
 import 'package:esc_pos_gen/esc_pos_gen.dart';
-import 'package:fluetooth_plus/fluetooth_plus.dart';
+import 'package:fluetooth_plus/fluetooth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

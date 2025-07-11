@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fluetooth_plus/fluetooth_plus.dart';
+import 'package:fluetooth_plus/fluetooth.dart';
 
 void main() {
   const MethodChannel channel = MethodChannel('fluetooth');

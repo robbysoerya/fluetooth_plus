@@ -3,8 +3,8 @@
 # Run `pod lib lint fluetooth.podspec` to validate before publishing.
 #
 Pod::Spec.new do |s|
-  s.name             = 'fluetooth'
-  s.version          = '0.0.1'
+  s.name             = 'fluetooth_plus'
+  s.version          = '1.0.0'
   s.summary          = 'Flutter library for sending bytes to Bluetooth devices.'
   s.description      = <<-DESC
 Flutter library for sending bytes to Bluetooth devices.
