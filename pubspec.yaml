@@ -1,6 +1,6 @@
 name: fluetooth_plus
 description: Flutter library for sending bytes to Bluetooth devices.
-version: 1.0.0
+version: 1.0.1
 repository: https://github.com/robbysoerya/fluetooth_plus
 issue_tracker: https://github.com/robbysoerya/fluetooth_plus/issues
 
